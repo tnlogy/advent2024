@@ -7,13 +7,14 @@ fn main() {
 
     for line in input_map.lines() {
         let (a, b) = line.split_once("|").unwrap();
-        if let Some(map) = before_me_map.get_mut(b) {
+        before_me_map.entry(b).or_default().insert(a, true);
+        /*if let Some(map) = before_me_map.get_mut(b) {
             map.insert(a, true);
         } else {
             let mut map: HashMap<&str, bool>= HashMap::new();
             map.insert(a, true);
             before_me_map.insert(b, map);
-        }
+        }*/
     }
 
     let mut sum_part1: u32 = 0;
