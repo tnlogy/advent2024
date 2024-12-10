@@ -52,7 +52,6 @@ fn main() {
                 for s in 0..size {
                     let min_size = if part == 1 { 1 } else { size };
                     let free_index = data_id_list[index..].iter().position(|&x| x == -1);
-                    // println!("fi {:?} {}", free_index, copy_index);
                     if let Some(i) = free_index {
                         if i <= ci {
                             data_id_list[i] = copy_index as i32;
@@ -63,8 +62,6 @@ fn main() {
                         }
                     } else {
                         free_space = false;
-                        //println!("done {} {:?} {}", copy_index, &data[copy_index], s);
-                        //println!("done {:?}", &data_id_list.clone()[0..data[copy_index].pos + size - s + 1]);
                         break;
                     }
                 }
@@ -74,7 +71,6 @@ fn main() {
             }
             copy_index -= 1;
         }
-        println!("{:?}", data_id_list);
         let free_pos = data_id_list[index..].iter().position(|&x| x == -1);
         if let Some(p) = free_pos {
             println!("part{} {:?}", part, data_id_list.iter().enumerate().map(|(i, &x)| if x != -1 { i*x as usize } else { 0 }).sum::<usize>());
