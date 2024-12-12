@@ -1,13 +1,14 @@
 use std::collections::{HashMap, VecDeque};
 
-fn fill(x: usize, y: usize, grid: &mut Vec<Vec<char>>, part: usize) -> i32 {
+fn calculate_cost(x: usize, y: usize, grid: &mut Vec<Vec<char>>, part: usize) -> i32 {
     let e = grid[y][x];
     if e == '.' || e == '#' { return 0 }
     let mut area = 0;
     let mut perim = 0;
+    let mut edge_id = 1;
     let mut visited = vec![];
     let mut queue = VecDeque::from([(x, y)]);
-    let mut perims: HashMap<(usize, usize, usize), bool> = HashMap::new(); // x, y, dir -> bool
+    let mut perims: HashMap<(usize, usize, usize), i32> = HashMap::new(); // x, y, dir -> edge-id
     while !queue.is_empty() {
         let (x, y) = queue.pop_front().unwrap();
         let qe = grid[y][x];
@@ -20,12 +21,18 @@ fn fill(x: usize, y: usize, grid: &mut Vec<Vec<char>>, part: usize) -> i32 {
                     if part == 1 {
                         perim += 1
                     } else {
-                        if ((dir == 0 || dir == 1) && !perims.contains_key(&(x, y - 1, dir)) && !perims.contains_key(&(x, y + 1, dir)))
-                            || ((dir == 2 || dir == 3) && !perims.contains_key(&(x - 1, y, dir)) && !perims.contains_key(&(x + 1, y, dir))) {
+                        let (delta1, delta2) = if dir < 2 { ((x, y - 1, dir), (x, y + 1, dir)) } else { ((x - 1, y, dir), (x + 1, y, dir)) };
+                        let e1 = *perims.get(&delta1).unwrap_or(&-1);
+                        let e2 = *perims.get(&delta2).unwrap_or(&-1);
+                        if e1 == -1 && e2 == -1 { // new edge
                             perim += 1;
-                            // println!("per {} {} {}", x, y, dir);
+                            edge_id += 1;
+                            perims.insert((x, y, dir), edge_id);
+                        } else {
+                            // border case when two edges meet with different edge ids.
+                            if e1 != -1 && e2 != -1 && e1 != e2 { perim -= 1; }
+                            perims.insert((x, y, dir), if e1 != -1 { e1 } else { e2 });
                         }
-                        perims.insert((x, y, dir), true);
                     }
                 }
                 if !visited.contains(c) && !queue.contains(c) {
@@ -36,9 +43,6 @@ fn fill(x: usize, y: usize, grid: &mut Vec<Vec<char>>, part: usize) -> i32 {
     }
     visited.iter().for_each(|(x, y)| if grid[*y][*x] == e { grid[*y][*x] = '#' });
     println!("{x},{y}: {} {} p {}", e, area, perim);
-    if perim % 2 != 0 { // this is an ugly fix since we sometimes get odd number of edges.
-        perim -= 1;     // probably since we fill the edges from two directions in some cases.
-    }
     area * perim
 }
 
@@ -49,6 +53,8 @@ fn main() {
             .lines()
             .map(|l| l.chars().collect())
             .collect::<Vec<Vec<char>>>();
+
+        // add padding around grid
         for row in grid.iter_mut() {
             row.insert(0, '.');
             row.push('.');
@@ -62,7 +68,7 @@ fn main() {
         let mut res = 0;
         for y in 1..rows - 1 {
             for x in 1..cols - 1 {
-                res += fill(x, y, &mut grid, part);
+                res += calculate_cost(x, y, &mut grid, part);
             }
         }
         println!("Part {part}: {res}");
