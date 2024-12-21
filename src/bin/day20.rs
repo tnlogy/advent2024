@@ -1,21 +1,13 @@
 use std::collections::{HashMap, VecDeque};
-use macroquad::color::{BLACK, BLUE, DARKGRAY, GREEN, WHITE};
-use macroquad::prelude::{clear_background, draw_line, draw_rectangle, draw_text, next_frame, screen_width};
 
 #[derive(Debug, Clone, Eq, Hash, PartialEq)]
-struct Pos {
-    x: usize,
-    y: usize,
-}
-
-struct Grid {
-    grid: Vec<Vec<char>>,
-}
+struct Pos { x: usize, y: usize, }
+struct Grid { grid: Vec<Vec<char>> }
 
 impl Grid {
     fn new(input: &str) -> Grid {
-        let mut grid = input.lines().map(|l| l.chars().collect()).collect::<Vec<Vec<char>>>();
-        Grid { grid: grid }
+        let grid = input.lines().map(|l| l.chars().collect()).collect::<Vec<Vec<char>>>();
+        Grid { grid }
     }
 
     fn iter_pos(&self) -> impl Iterator<Item = (usize, usize, char)> + '_ {
@@ -25,12 +17,12 @@ impl Grid {
     }
 
     fn find(&self, c: char) -> Pos {
-        let (x, y, _) = self.iter_pos().find(|(x, y, value)| *value == c).unwrap();
+        let (x, y, _) = self.iter_pos().find(|(_, _, value)| *value == c).unwrap();
         Pos { x, y }
     }
 
-    fn bfs(&self, start: Pos, end: Pos) -> HashMap<Pos, usize> {
-        struct SE { p: Pos, steps: usize };
+    fn bfs(&self, start: Pos) -> HashMap<Pos, usize> {
+        struct SE { p: Pos, steps: usize }
         let mut queue: VecDeque<SE> = VecDeque::new();
         let mut visited: HashMap<Pos, usize> = HashMap::new();
 
@@ -52,63 +44,43 @@ impl Grid {
     }
 }
 
-#[macroquad::main("Day20")]
-async fn main() {
+fn main() {
     let input = include_str!("../../indata/day20.txt");
-    let mut grid = Grid::new(input);
+    let grid = Grid::new(input);
     let (start, end) = (grid.find('S'), grid.find('E'));
     println!("start {:?} end {:?}", start, end);
-    let s_to_e = grid.bfs(start.clone(), end.clone());
-    let e_to_s = grid.bfs(end.clone(), start.clone());
+    let s_to_e = grid.bfs(start.clone());
+    let e_to_s = grid.bfs(end.clone());
     let best_cost = s_to_e[&end];
     println!("best cost {:?}", best_cost);
-    let mut saves: HashMap<usize, usize> = HashMap::new();
-    let mut part1 = 0;
-    let mut add_cost = |cost| {
-        if cost < best_cost {
-            let save = best_cost - cost;
-            if save >= 100 {
-                println!("cost is {} {}", cost, save);
-                part1 += 1;
-            }
-            saves.entry(save).and_modify(|x| *x += 1).or_insert(1);
-        }
-    };
 
-    for y in 1..grid.grid.len()-1 {
-        for x in 1..grid.grid[0].len()-1 {
-            if grid.grid[y][x] == '#' {
-                for ((dx1, dy1), (dx2, dy2)) in [
-                    ((-1, 0), (1, 0)), ((0, -1), (0, 1)), ((-1, 0), (0, 1)), ((-1, 0), (0, -1)), ((0, -1), (1, 0)), ((0, 1), (1, 0))] {
-                    let (x1, y1) = ((x as i32 + dx1) as usize, (y as i32 + dy1) as usize);
-                    let (x2, y2) = ((x as i32 + dx2) as usize, (y as i32 + dy2) as usize);
-                    if grid.grid[y1][x1] != '#' && grid.grid[y2][x2] != '#' {
-                        let cost1 = s_to_e[&Pos { x: x1, y: y1 }] + e_to_s[&Pos { x: x2, y: y2 }] + 2;
-                        let cost2 = e_to_s[&Pos { x: x1, y: y1 }] + s_to_e[&Pos { x: x2, y: y2 }] + 2;
+    for part in [1, 2] {
+        let mut saves: HashMap<usize, usize> = HashMap::new();
+        let mut res = 0;
+        let mut add_cost = |cost| {
+            if cost < best_cost {
+                let save = best_cost - cost;
+                if save >= 100 {
+                    res += 1;
+                    saves.entry(save).and_modify(|x| *x += 1).or_insert(1);
+                }
+            }
+        };
+
+        for (x, y, c0) in grid.iter_pos() {
+            let max_cheat = if part == 1 { 3 } else { 21 };
+            if c0 != '#' {
+                for (x2, y2, c) in grid.iter_pos() {
+                    let manhattan_distance: usize = ((x2 as isize - x as isize).abs() + (y2 as isize - y as isize).abs()) as usize;
+                    if c != '#' && manhattan_distance < max_cheat {
+                        let cost1 = s_to_e[&Pos { x, y }] + e_to_s[&Pos { x: x2, y: y2 }] + manhattan_distance;
+                        let cost2 = e_to_s[&Pos { x, y }] + s_to_e[&Pos { x: x2, y: y2 }] + manhattan_distance;
                         add_cost(cost1);
                         add_cost(cost2);
                     }
                 }
             }
         }
+        println!("part{part} {}", res/2);
     }
-
-    println!("saves {:?}", saves);
-    println!("part1 {}", part1);
-
-   loop {
-        clear_background(BLACK);
-        for y in 0..grid.grid.len() {
-            for x in 0..grid.grid[0].len() {
-                let color =  if grid.grid[y][x] != '#' { BLACK } else { GREEN };
-                draw_rectangle(x as f32 * 10., 30.0 + y as f32 * 10., 8.0, 8.0, color);
-            }
-        }
-
-        draw_text("Day 20", 20.0, 20.0, 30.0, WHITE);
-
-        next_frame().await
-    }
-   // assert_eq!(saves[&8], 4);
-    //assert_eq!(saves[&4], 14);
 }
